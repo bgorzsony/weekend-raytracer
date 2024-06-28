@@ -1,0 +1,9 @@
+[package]
+name = "rust-stuff"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glam ={ version = "*"}
+indicatif = "0.17.8"
+itertools = {version = "*"}
