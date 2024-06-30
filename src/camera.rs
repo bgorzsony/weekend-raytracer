@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::Path};
 
 use glam::DVec3;
 use indicatif::ParallelProgressIterator;
@@ -159,7 +159,7 @@ impl Camera {
         CameraBuilder::default()
     }
 
-    pub fn render<T: Hittable + Sync>(&self, world: Vec<T>) -> std::io::Result<()> {
+    pub fn render<T: Hittable + Sync, P: AsRef<Path>>(&self, filepath: P, world: Vec<T>) -> std::io::Result<()> {
         let pixels: String = (0..self.image_height)
             .cartesian_product(0..self.image_width)
             .collect::<Vec<(i64, i64)>>()
@@ -180,7 +180,7 @@ impl Camera {
             .collect();
 
         fs::write(
-            "image.ppm",
+            filepath,
             format!(
                 "P3\n{} {}\n255\n{}",
                 self.image_width, self.image_height, pixels

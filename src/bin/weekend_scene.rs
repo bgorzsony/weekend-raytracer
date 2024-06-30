@@ -1,19 +1,13 @@
 use glam::DVec3;
 use itertools::Itertools;
-use material::{DielectricMaterial, LambertianMaterial, MetalMaterial};
+use raytracer::material::{DielectricMaterial, LambertianMaterial, MetalMaterial};
 use rand::Rng;
-use sphere::Sphere;
+use raytracer::sphere::Sphere;
+use std::path::Path;
 use std::{error::Error, sync::Arc};
-use vectors::{random_vector, random_vector_range};
+use raytracer::vectors::{random_vector, random_vector_range};
 
-mod camera;
-mod hittable;
-mod material;
-mod ray;
-mod sphere;
-mod vectors;
-
-use crate::camera::Camera;
+use raytracer::camera::Camera;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut world: Vec<Sphere> = vec![];
@@ -76,6 +70,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
     world.push(Sphere::new(DVec3::new(4., 1., 0.), 1., material3));
 
+
+    let this_file = file!();
+    let with_extension = Path::new(this_file).with_extension("ppm");
+    let path = with_extension.file_name().expect("No filename");
+
     let camera = Camera::init()
         .aspect_ratio(16. / 9.)
         .vup(DVec3::new(0., 1., 0.))
@@ -88,7 +87,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .defocus_angle(0.6)
         .focus_dist(10.0)
         .build();
-    camera.render(world)?;
+    camera.render(path, world)?;
 
     Ok(())
 }

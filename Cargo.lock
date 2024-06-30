@@ -188,7 +188,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-stuff"
+name = "raytracer"
 version = "0.1.0"
 dependencies = [
  "glam",
