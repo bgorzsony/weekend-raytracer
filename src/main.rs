@@ -1,107 +1,94 @@
 use glam::DVec3;
-use indicatif::ProgressIterator;
 use itertools::Itertools;
-use std::error::Error;
-use std::fs;
-use std::io::{BufWriter, Write};
+use material::{DielectricMaterial, LambertianMaterial, MetalMaterial};
+use rand::Rng;
+use sphere::Sphere;
+use std::{error::Error, sync::Arc};
+use vectors::{random_vector, random_vector_range};
 
-fn write_color(color: &DVec3) -> String {
-    let r = color[0];
-    let g = color[1];
-    let b = color[2];
+mod camera;
+mod hittable;
+mod material;
+mod ray;
+mod sphere;
+mod vectors;
 
-    let ir: i64 = (255.999 * r) as i64;
-    let ig: i64 = (255.999 * g) as i64;
-    let ib: i64 = (255.999 * b) as i64;
-
-    String::from(format!("{ir} {ig} {ib}\n"))
-}
-
-struct Ray {
-    origin: DVec3,
-    direction: DVec3,
-}
-
-impl Ray {
-    pub fn new(origin: DVec3, direction: DVec3) -> Self {
-        Ray {
-            direction: direction.normalize(),
-            origin: origin,
-        }
-    }
-
-    fn at(&self, t: f64) -> DVec3 {
-        self.origin + self.direction * t
-    }
-
-    fn ray_color(&self) -> DVec3 {
-        let t = hit_sphere(&DVec3::new(0.0,0.0,-1.0), 0.5, self);
-        if  t > 0.0 {
-            let normal = (self.at(t) - DVec3::new(0.0, 0.0, -1.0)).normalize();
-            return 0.5*DVec3::new(normal.x+1.0, normal.y+1.0, normal.z+1.0);
-        }
-
-        let unit_direction = self.direction.normalize();
-        let a = 0.5*(unit_direction.y+1.0);
-        (1.0-a)*DVec3::new(1.0, 1.0, 1.0) + a*DVec3::new(0.5, 0.7, 1.0)
-    }
-}
-
-fn hit_sphere(center: &DVec3, radius: f64, ray: &Ray) -> f64 {
-    let oc = *center - ray.origin;
-    let a = ray.direction.dot(ray.direction);
-    let b = -2.0 * ray.direction.dot(oc);
-    let c = oc.dot(oc) - radius*radius;
-    let discriminant = b*b - 4.0*a*c;
-    if discriminant < 0.0 {
-        -1.0
-    } else {
-        (-b - discriminant.sqrt()) / (2.0*a)
-    }
-}
+use crate::camera::Camera;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let mut world: Vec<Sphere> = vec![];
 
-    const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: i64 = 400;
-    const IMAGE_HEIGHT: i64 = {
-        let mut temp_height = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as i64;
-        temp_height = if temp_height < 1 {1} else {temp_height};
-        temp_height
-    };
+    let material_ground = Arc::new(LambertianMaterial {
+        albedo: DVec3::new(0.5, 0.5, 0.5),
+    });
+    world.push(Sphere::new(
+        DVec3::new(0., -1000., 0.),
+        1000.,
+        material_ground,
+    ));
 
-    const FOCAL_LENGTH: f64 = 1.0;
-    const VIEWPORT_HEIGHT: f64 = 2.0;
-    const VIEWPORT_WIDTH: f64 = VIEWPORT_HEIGHT * ((IMAGE_WIDTH as f64 / IMAGE_HEIGHT as f64) as f64);
-    let camera_center = DVec3::new(0.0, 0.0, 0.0);
+    let mut rand = rand::thread_rng();
 
-    let viewport_u = DVec3::new(VIEWPORT_WIDTH, 0.0, 0.0);
-    let viewport_v = DVec3::new(0.0, -VIEWPORT_HEIGHT, 0.0);
-
-    let pixel_delta_u = viewport_u / IMAGE_WIDTH as f64;
-    let pixel_delta_v = viewport_v / IMAGE_HEIGHT as f64;
-
-    let viewport_upper_left = camera_center
-                             - DVec3::new(0.0, 0.0, FOCAL_LENGTH) - viewport_u / 2.0 - viewport_v / 2.0;
-    let pixel00_loc = viewport_upper_left + 0.5 * (pixel_delta_u + pixel_delta_v);
-
-    let file = fs::File::create("image.ppm")?;
-    let mut writer = BufWriter::new(file);
-
-    let pixels: String = (0..IMAGE_HEIGHT)
-        .cartesian_product(0..IMAGE_WIDTH)
+    let random_spheres = (-11..11)
+        .cartesian_product(-11..11)
         .into_iter()
-        .progress_count(IMAGE_WIDTH as u64 * IMAGE_HEIGHT as u64)
-        .map(|(j, i)| {
-            let pixel_center = pixel00_loc + (i as f64 * pixel_delta_u) + (j as f64 * pixel_delta_v);
-            let ray_direction = pixel_center - camera_center;
-            let ray = Ray::new(camera_center, ray_direction);
-            let color = ray.ray_color();
-            write_color(&color)
-        })
-        .collect();
+        .map(|(a, b)| {
+            let choose_mat: f64 = rand.gen();
+            let center = DVec3::new(
+                a as f64 + 0.9 * rand.gen::<f64>(),
+                0.2,
+                b as f64 + 0.9 * rand.gen::<f64>(),
+            );
 
-    writer.write(format!("P3\n{IMAGE_WIDTH} {IMAGE_HEIGHT}\n255\n{pixels}").as_bytes())?;
+            if choose_mat < 0.8 {
+                let albedo = random_vector() * random_vector();
+                Sphere::new(center, 0.2, Arc::new(LambertianMaterial { albedo: albedo }))
+            } else if choose_mat < 0.95 {
+                let albedo = random_vector_range(0.5, 1.);
+                let fuzz = rand.gen_range(0.0..0.5);
+
+                Sphere::new(center, 0.2, Arc::new(MetalMaterial { albedo, fuzz }))
+            } else {
+                Sphere::new(
+                    center,
+                    0.2,
+                    Arc::new(DielectricMaterial {
+                        refraction_index: 1.5,
+                    }),
+                )
+            }
+        });
+    world.extend(random_spheres);
+
+    let material1 = Arc::new(DielectricMaterial {
+        refraction_index: 1.5,
+    });
+    world.push(Sphere::new(DVec3::new(0., 1., 0.), 1., material1));
+
+    let material2 = Arc::new(LambertianMaterial {
+        albedo: DVec3::new(0.4, 0.2, 0.1),
+    });
+    world.push(Sphere::new(DVec3::new(-4., 1., 0.), 1., material2));
+
+    let material3 = Arc::new(MetalMaterial {
+        albedo: DVec3::new(0.7, 0.6, 0.5),
+        fuzz: 0.,
+    });
+    world.push(Sphere::new(DVec3::new(4., 1., 0.), 1., material3));
+
+    let camera = Camera::init()
+        .aspect_ratio(16. / 9.)
+        .vup(DVec3::new(0., 1., 0.))
+        .look_from(DVec3::new(13., 2., 3.))
+        .look_at(DVec3::new(0., 0., -1.))
+        .image_width(800)
+        .samples_per_pixel(100)
+        .max_depth(80)
+        .vfov(20.)
+        .defocus_angle(0.6)
+        .focus_dist(10.0)
+        .build();
+    camera.render(world)?;
 
     Ok(())
 }
