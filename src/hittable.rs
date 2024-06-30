@@ -1,8 +1,8 @@
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 use glam::DVec3;
 
-use crate::material::Material;
+use crate::material::Materials;
 
 use super::ray::Ray;
 
@@ -11,11 +11,11 @@ pub struct HitRecord {
     pub normal: DVec3,
     pub t: f64,
     pub front_face: bool,
-    pub material: Arc<dyn Material>,
+    pub material: Materials,
 }
 
 impl HitRecord {
-    pub fn new(point: DVec3, normal: DVec3, t: f64, material: Arc<dyn Material>) -> Self {
+    pub fn new(point: DVec3, normal: DVec3, t: f64, material: Materials) -> Self {
         Self {
             point: point,
             normal: normal,

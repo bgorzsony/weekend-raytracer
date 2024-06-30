@@ -4,7 +4,7 @@ use raytracer::material::{DielectricMaterial, LambertianMaterial, MetalMaterial}
 use rand::Rng;
 use raytracer::sphere::Sphere;
 use std::path::Path;
-use std::{error::Error, sync::Arc};
+use std::error::Error;
 use raytracer::vectors::{random_vector, random_vector_range};
 
 use raytracer::camera::Camera;
@@ -12,13 +12,13 @@ use raytracer::camera::Camera;
 fn main() -> Result<(), Box<dyn Error>> {
     let mut world: Vec<Sphere> = vec![];
 
-    let material_ground = Arc::new(LambertianMaterial {
+    let material_ground = LambertianMaterial {
         albedo: DVec3::new(0.5, 0.5, 0.5),
-    });
+    };
     world.push(Sphere::new(
         DVec3::new(0., -1000., 0.),
         1000.,
-        material_ground,
+        material_ground.into(),
     ));
 
     let mut rand = rand::thread_rng();
@@ -36,39 +36,39 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             if choose_mat < 0.8 {
                 let albedo = random_vector() * random_vector();
-                Sphere::new(center, 0.2, Arc::new(LambertianMaterial { albedo: albedo }))
+                Sphere::new(center, 0.2, LambertianMaterial { albedo: albedo }.into())
             } else if choose_mat < 0.95 {
                 let albedo = random_vector_range(0.5, 1.);
                 let fuzz = rand.gen_range(0.0..0.5);
 
-                Sphere::new(center, 0.2, Arc::new(MetalMaterial { albedo, fuzz }))
+                Sphere::new(center, 0.2, MetalMaterial { albedo, fuzz }.into())
             } else {
                 Sphere::new(
                     center,
                     0.2,
-                    Arc::new(DielectricMaterial {
+                    DielectricMaterial {
                         refraction_index: 1.5,
-                    }),
+                    }.into(),
                 )
             }
         });
     world.extend(random_spheres);
 
-    let material1 = Arc::new(DielectricMaterial {
+    let material1 = DielectricMaterial {
         refraction_index: 1.5,
-    });
-    world.push(Sphere::new(DVec3::new(0., 1., 0.), 1., material1));
+    };
+    world.push(Sphere::new(DVec3::new(0., 1., 0.), 1., material1.into()));
 
-    let material2 = Arc::new(LambertianMaterial {
+    let material2 = LambertianMaterial {
         albedo: DVec3::new(0.4, 0.2, 0.1),
-    });
-    world.push(Sphere::new(DVec3::new(-4., 1., 0.), 1., material2));
+    };
+    world.push(Sphere::new(DVec3::new(-4., 1., 0.), 1., material2.into()));
 
-    let material3 = Arc::new(MetalMaterial {
+    let material3 = MetalMaterial {
         albedo: DVec3::new(0.7, 0.6, 0.5),
         fuzz: 0.,
-    });
-    world.push(Sphere::new(DVec3::new(4., 1., 0.), 1., material3));
+    };
+    world.push(Sphere::new(DVec3::new(4., 1., 0.), 1., material3.into()));
 
 
     let this_file = file!();

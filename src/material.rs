@@ -2,6 +2,7 @@ use std::ops::Neg;
 
 use glam::DVec3;
 use rand::Rng;
+use enum_dispatch::enum_dispatch;
 
 use crate::{
     hittable::HitRecord,
@@ -14,10 +15,12 @@ pub struct Scattered {
     pub ray: Ray,
 }
 
-pub trait Material {
+#[enum_dispatch]
+pub trait Material: Clone {
     fn scatter(&self, ray_in: &Ray, hit: &HitRecord) -> Option<Scattered>;
 }
 
+#[derive(Clone)]
 pub struct LambertianMaterial {
     pub albedo: DVec3,
 }
@@ -37,10 +40,12 @@ impl Material for LambertianMaterial {
     }
 }
 
+#[derive(Clone)]
 pub struct MetalMaterial {
     pub albedo: DVec3,
     pub fuzz: f64,
 }
+
 
 impl Material for MetalMaterial {
     fn scatter(&self, ray_in: &Ray, hit: &HitRecord) -> Option<Scattered> {
@@ -59,6 +64,7 @@ impl Material for MetalMaterial {
     }
 }
 
+#[derive(Clone)]
 pub struct DielectricMaterial {
     pub refraction_index: f64,
 }
@@ -90,9 +96,18 @@ impl Material for DielectricMaterial {
     }
 }
 
+#[inline(always)]
 pub fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
     // Use Schlick's approximation for reflectance.
     let mut r0 = (1. - ref_idx) / (1. + ref_idx);
     r0 = r0 * r0;
     return r0 + (1. - r0) * (1. - cosine).powf(5.);
+}
+
+#[enum_dispatch(Material)]
+#[derive(Clone)]
+pub enum Materials {
+    LambertianMaterial,
+    MetalMaterial,
+    DielectricMaterial
 }
